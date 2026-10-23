@@ -242,10 +242,29 @@ async function connectAccount(account) {
       markOnlineOnConnect: false,
       generateHighQualityLinkPreview: false,
     });
+    let pairingRequested = false;
     sockets.set(id, sock);
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', async update => {
-      if (update.qr) { logger.info({ accountId: id }, 'Scan this QR with WhatsApp > Linked devices > Link a device'); qrcode.generate(update.qr, { small: true }); }
+      if (update.qr) {
+        // Pairing-code login: no giant QR in Railway logs. Set PAIRING_NUMBER (e.g. 94771234567) to use it.
+        const pairNumber = String(process.env.PAIRING_NUMBER || account.ownerNumber || '').replace(/\D/g, '');
+        if (pairNumber && !sock.authState?.creds?.registered) {
+          if (!pairingRequested) {
+            pairingRequested = true;
+            setTimeout(async () => {
+              try {
+                const raw = await sock.requestPairingCode(pairNumber);
+                const code = String(raw).match(/.{1,4}/g)?.join('-') || raw;
+                console.log(`\n========== WHATSAPP PAIRING CODE: ${code} ==========\nWhatsApp > Linked devices > Link a device > "Link with phone number instead" > enter this code\n`);
+              } catch (err) { pairingRequested = false; logger.warn({ err: err.message, accountId: id }, 'Pairing code request failed'); }
+            }, 3000);
+          }
+        } else {
+          logger.info({ accountId: id }, 'Scan this QR with WhatsApp > Linked devices > Link a device (or set PAIRING_NUMBER to use a pairing code instead)');
+          qrcode.generate(update.qr, { small: true });
+        }
+      }
       if (update.connection === 'open') {
         reconnectAttempts.set(id, 0);
         logger.info({ accountId: id, user: sock.user?.id }, 'WhatsApp account connected');

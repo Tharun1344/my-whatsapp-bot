@@ -171,7 +171,7 @@ async function handleMessage(sock, account, incoming) {
   const botIds = [botJid, botLid].filter(Boolean);
   const isBotAdmins = isGroup && botIds.some(j => groupAdmins.includes(j));
   const isAdmins = isGroup && groupAdmins.includes(sender);
-  const reply = (text, options = {}) => sock.sendMessage(from, { text: String(text), ...options }, { quoted: incoming });
+  const reply = (text, options = {}) => sock.sendMessage(from, { text: String(text), ...options }, { quoted: incoming }).catch(err => { console.error(`[SEND FAILED] to ${from} ->`, err?.message || err); throw err; });
 
   if (settings.mode === 'private') {
     // Private means owner self-chat only; do not accept other private chats or groups.
@@ -209,7 +209,7 @@ async function handleMessage(sock, account, incoming) {
       const reactEmoji = plugin.react || (settings.autoReact ? settings.autoReactEmoji : '');
       if (reactEmoji) await sock.sendMessage(from, { react: { text: String(reactEmoji).slice(0, 16), key: incoming.key } }).catch(() => {});
       try { await plugin.function(sock, incoming, m, context); }
-      catch (err) { logger.error({ err, commandName, accountId: account.id }, 'Command failed'); await reply('❌ Command failed. Check the bot logs.').catch(() => {}); }
+      catch (err) { console.error(`[COMMAND FAILED] .${commandName} ->`, err?.stack || err); logger.error({ err, commandName, accountId: account.id }, 'Command failed'); await reply('❌ Command failed. Check the bot logs.').catch(() => {}); }
     } else {
       await reply(`❓ Unknown command: ${PREFIX}${commandName}\nUse ${PREFIX}menu to see available commands.`).catch(() => {});
     }
@@ -315,7 +315,7 @@ async function connectAccount(account) {
           if (recentMessages.size > MAX_CACHED_MESSAGES) recentMessages.delete(recentMessages.keys().next().value);
         }
         try { await handleMessage(sock, account, message); }
-        catch (err) { logger.error({ err, accountId: id }, 'Message handler failed'); }
+        catch (err) { console.error('[MESSAGE HANDLER FAILED]', err?.stack || err); logger.error({ err, accountId: id }, 'Message handler failed'); }
       }
     });
     sock.ev.on('messages.update', async updates => {

@@ -1,0 +1,10 @@
+{
+  "name": "DANUWA-MD",
+  "description": "Baileys-based WhatsApp bot with group tools and optional multi-account sessions",
+  "keywords": ["whatsapp", "baileys", "bot", "railway"],
+  "repository": "",
+  "env": {
+    "BOT_OWNER": { "description": "Owner phone number in international digits without +", "required": true },
+    "PREFIX": { "description": "Command prefix", "value": ".", "required": false }
+  }
+}
